@@ -1,0 +1,338 @@
+from machine import Timer,PWM
+import sensor, image, time, lcd
+
+
+lcd.init(freq=15000000)
+sensor.reset()                      # Reset and initialize the sensor. It will
+                                    # run automatically, call sensor.run(0) to stop
+sensor.set_pixformat(sensor.RGB565) # Set pixel format to RGB565 (or GRAYSCALE)
+sensor.set_framesize(sensor.QVGA)   # Set frame size to QVGA (320x240)
+sensor.skip_frames(time = 1000)     # Wait for settings take effect.
+clock = time.clock()
+sensor.set_vflip(1)
+#初始化引脚
+tim1 = Timer(Timer.TIMER0, Timer.CHANNEL0, mode=Timer.MODE_PWM)
+ch1 = PWM(tim1, freq=500, duty=75, pin=9)
+tim2 = Timer(Timer.TIMER0, Timer.CHANNEL2, mode=Timer.MODE_PWM)
+ch2 = PWM(tim2, freq=500, duty=25, pin=10)
+tim3 = Timer(Timer.TIMER0, Timer.CHANNEL3, mode=Timer.MODE_PWM)
+ch3 = PWM(tim3, freq=500, duty=55, pin=11)
+tim4 = Timer(Timer.TIMER1, Timer.CHANNEL0, mode=Timer.MODE_PWM)
+ch4 = PWM(tim4, freq=500, duty=40, pin=12)
+tim5 = Timer(Timer.TIMER1, Timer.CHANNEL1, mode=Timer.MODE_PWM)
+ch5 = PWM(tim5, freq=500, duty=25, pin=13)
+duty1=50
+duty2=20#20
+duty3=60#55
+duty4=35#40
+duty5=60#60
+ch1.enable()
+ch2.enable()
+ch3.enable()
+ch4.enable()
+ch5.enable()
+a=0
+
+def duoji1(a,c,d):    #舵机函数1：主要实现将目标物体移动到视野中心
+    global duty1
+    global duty2
+    global duty3
+    global duty4
+    global h
+    global Take
+    global l
+    while(a>8 or a<-8):
+        #clock.tick()                    # Update the FPS clock.
+        x=0
+        y=0
+        img = sensor.snapshot()         # Take a picture and return the image.
+        if l==1:
+            blobs = img.find_blobs([green_threshold])
+        elif l==2:
+            blobs = img.find_blobs([red_threshold])
+        b = find_max(blobs)
+        print('a1:',a)
+        if b:
+            x = b[5]-160#x轴的坐标
+            y = b[6]-120
+            tmp=img.draw_rectangle(b[0:4])
+            tmp=img.draw_cross(b[5], b[6])
+            print('duty2:',duty2)
+            duty2+=0.5
+            ch2.duty(duty2)
+            print('x:',x)
+            print('y:',y)
+            if x<3 and x>-3:
+                break
+            elif y>-3 and y<3:
+                break
+            if x>5:           #1号
+                duty1-=0.3
+            elif x<-5:
+                duty1+=0.3
+            ch1.duty(duty1)
+            if y>3:           #4号
+                duty4-=0.5
+            elif y<-3:
+                duty4+=0.5
+            ch4.duty(duty4)
+            if y>3:           #3号
+                duty3-=0.3
+            elif y<-3:
+                duty3+=0.3
+            ch3.duty(duty3)
+            Take+=1
+        elif b==False:
+            h+=1
+            if h>30:
+                break
+        lcd.display(img)
+        print('l:',l)
+        print('adja')
+        #print(y)
+        #time.sleep(d)
+
+
+#参数1：转的角度 参数2：转的舵机编号 参数3：设定某未知单位时间内加或减的数
+def duoji2(a,c,d):   #舵机函数2：主要实目标舵机在所给时间内定点转过多少角度，角度可叠加
+    global duty1
+    global duty2
+    global duty3
+    global duty4
+    global duty5
+    global Take
+    while(a>5 or a<-5):
+        #clock.tick()                    # Update the FPS clock.
+        x=0
+        y=0
+        print('a2:',a)
+        if Take>=0:
+            #print(a)
+            if a<5 and a>-5:
+                break
+            elif c==1:
+                if a>5:
+                    duty1+=d
+                    a-=d
+                    if a<8:
+                        a=0
+                        print(a)
+                        c=0
+                elif a<-5:
+                    duty1-=d
+                    a+=d
+                    if a>-8:
+                        a=0
+                        c=0
+                ch1.duty(duty1)
+                print('s:',duty1)
+            elif c==2:
+                if a>5:
+                    duty2-=d
+                    a-=d
+                    if a<5:
+                        a=0
+                        c=0
+                elif a<-5:
+                    duty2+=d
+                    a+=d
+                    if a>5:
+                        a=0
+                        c=0
+                ch2.duty(duty2)
+            elif c==3:
+                if a>5:
+                    duty3-=d
+                    a-=d
+                    if a<5:
+                        a=0
+                        c=0
+                elif a<-5:
+                    duty3+=d
+                    a+=d
+                    if a>-5:
+                        a=0
+                        c=0
+                ch3.duty(duty3)
+            elif c==4:
+                if a>5:
+                    duty4-=d
+                    a-=d
+                    if a<5:
+                        a=0
+                        c=0
+                elif a<-5:
+                    duty4+=d
+                    a+=d
+                    if a>-5:
+                        a=0
+                        c=0
+                ch4.duty(duty4)
+            elif c==5:
+                if a>5:
+                    duty5-=d
+                    a-=d
+                    if a<5:
+                        a=0
+                        c=0
+                elif a<-5:
+                    duty5+=d
+                    a+=d
+                    if a>5:
+                        a=0
+                        c=0
+                ch5.duty(duty5)
+        time.sleep(0.03)
+        #print(y)
+        #print(duty1)
+        #time.sleep(d)
+
+def duoji3(a):    #舵机函数3：主要实目标舵机制动恢复到特定的位置
+    global duty2
+    global duty3
+    global duty4
+    global duty1
+    global Take
+    while(Take>=2):
+        if duty2>20:
+            duty2 -= 0.1
+            ch2.duty(duty2)
+        if duty3>55:
+            duty3 -= 0.1
+            print('duty3:',duty3)
+            ch3.duty(duty3)
+        if duty1<a:
+            duty1 += 0.05
+            ch1.duty(duty1)
+        if duty4>40:
+            duty4 -= 0.05
+            ch4.duty(duty4)
+        time.sleep(0.005)
+        print('adasfd:',duty4)
+        if duty2<20 and duty3<55 and duty1>a and duty4<40:
+            print('adasfd:',duty1)
+            duoji2(-33,2,0.3)
+            duoji2(27,5,1.5)
+            duoji2(20,2,0.3)
+            break
+
+def duoji4(a):    #舵机函数4：主要实目标舵机转动到定点位置后执行放置任务，通过传入的参数a来调节物体放置的位置
+    global duty2
+    global duty3
+    global duty1
+    global Take
+    while(Take>=2):
+        if duty2>20:
+            duty2 -= 0.1
+            ch2.duty(duty2)
+        if duty3>55:
+            duty3 -= 0.1
+            print('duty3:',duty3)
+            ch3.duty(duty3)
+        if duty1>a:
+            duty1 -= 0.05
+            ch1.duty(duty1)
+        time.sleep(0.005)
+        print('adasfd:',duty1)
+        if duty2<20 and duty3<55 and duty1<a:
+            break
+
+
+def find_max(blobs):#寻找最大的小球
+    max_size=700
+    max_blob=False
+    for blob in blobs:
+        if blob[2]*blob[3] > max_size:
+            max_blob=blob
+            max_size = blob[2]*blob[3]
+        elif blob[2]*blob[3] < max_size:
+            max_blob=False
+    return max_blob
+'''
+def duoji(tim0):
+    clock.tick()                    # Update the FPS clock.
+    img = sensor.snapshot()         # Take a picture and return the image.
+    blobs = img.find_blobs([green_threshold])
+    b = find_max(blobs)
+    ch.duty(duty)
+
+tim0 = Timer(Timer.TIMER0, Timer.CHANNEL1, mode=Timer.MODE_PERIODIC, period=1, start=False, callback=duoji,arg=1)
+'''
+Take=0
+Take1=0
+h=0
+i=0
+l=0
+green_threshold   = (61, 100, -128, -16, -128, 127)
+red_threshold  =  (0, 68, 61, 127, 58, 85)
+while(True):
+    ch1.duty(duty1)
+    ch2.duty(duty2)
+    ch3.duty(duty3)
+    ch4.duty(duty4)
+    ch5.duty(duty5)
+    b= False
+    #if Take==0:
+     #   time.sleep(1)
+    #tim0.start()
+    clock.tick()                    # Update the FPS clock.
+    img = sensor.snapshot()         # Take a picture and return the image.
+    if i==1:
+        blobs = img.find_blobs([green_threshold])
+        if blobs:
+            i=0
+            l=1
+    elif i==2:
+        blobs = img.find_blobs([red_threshold])
+        if blobs:
+            i=0
+            l=2
+    if l==0:
+        i+=1
+        print('i:',i)
+        if i>=3:
+            i=0
+    if l==1:
+        blobs = img.find_blobs([green_threshold])
+        b = find_max(blobs)
+    elif l==2:
+        blobs = img.find_blobs([red_threshold])
+        b = find_max(blobs)
+    #elif blobs = img.find_blobs([blobs1[i]]):
+     #   i=2
+    print('l:',l)
+    #time.sleep(0.3)
+    if b!=False and Take1==0:
+        tmp=img.draw_rectangle(b[0:4])
+        tmp=img.draw_cross(b[5], b[6])
+        x = (b[5]-160)/10#x轴的坐标
+        y = (b[6]-120)/10
+        #x1=pidx(x)
+        #h1=pidh(h)
+        duoji1(10,1,0.3)
+        print('halouwork')
+        #duoji2(y,3,0.3)
+        #duoji2(-6,2,0.3)
+        print('Take:',Take)
+    elif h>50 and Take>=10:
+        print(1)
+        #duoji3(1)
+        if l==1:#抓取到绿色物块后放到特定区域，因为绿色和红色所识别到的阈值有差别，所以抓取的角度不同
+            duoji2(-15,4,0.3)
+            duoji2(-12,2,0.3)
+            duoji2(-27,5,1.5)
+            duoji3(85)
+        elif l==2:
+            duoji2(-15,4,0.3)
+            duoji2(-19,2,0.3)
+            duoji2(-27,5,1.5)
+            duoji3(73)
+        duoji4(50)
+        Take=0
+        l=0
+        h=0
+        Take1==100
+        Take==0
+    elif b==False:
+        h+=1
+    lcd.display(img)
